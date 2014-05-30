@@ -78,6 +78,7 @@ main = do
    , ((mod4Mask .|. shiftMask, xK_f), spawn "urxvt -e fbchat")
    , ((mod4Mask,               xK_s), spawn "lockscript")
    , ((mod4Mask,               xK_m), spawn "urxvt +tr -e ncmpcpp")
+   , ((mod4Mask .|. shiftMask, xK_m), spawn "spotify")
    , ((mod4Mask,               xK_i), spawn "eog")
    , ((mod4Mask,               xK_w), spawn "wpa_gui")
    , ((mod4Mask,               xK_p), shellPrompt myLauncherConfig)
