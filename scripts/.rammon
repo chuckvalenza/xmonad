@@ -1,0 +1,9 @@
+# Conky: .rammon
+
+background yes
+out_to_console yes
+out_to_x no
+update_interval 1
+
+TEXT
+| RAM Usage: $memperc%

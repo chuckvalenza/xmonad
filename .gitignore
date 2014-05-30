@@ -1,0 +1,9 @@
+.date
+altConfigs/
+history
+xmonad
+xmonad-x86_64-linux
+*.bak
+xmonad.errors
+xmonad.hi
+*.o

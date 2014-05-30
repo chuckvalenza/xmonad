@@ -1,0 +1,10 @@
+#!/bin/bash
+##updates battery percent every thirty seconds
+
+~/.xmonad/scripts/battery
+echo `cat ~/.xmonad/scripts/charge_now`
+while( true ); do
+  ~/.xmonads/scripts/battery
+  echo `cat ~/.xmonad/scripts/charge_now`
+  sleep 30
+done

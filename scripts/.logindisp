@@ -1,0 +1,9 @@
+# !/bin/bash
+# display user - hostname
+
+FS=" "$(hostname)": "$(whoami)
+
+while( true ); do
+  echo " "$FS
+  sleep 100000000000d
+done

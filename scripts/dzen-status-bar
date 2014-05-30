@@ -1,0 +1,810 @@
+#!/bin/bash
+#
+# Dzen status bar
+# Copyright (C) 2009-2011 Toby Cubitt (toby@dr-qubit.org)
+#
+# dzen-status-bar is free software: you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by the Free
+# Software Foundation, either version 3 of the License, or (at your option)
+# any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+# FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+# more details.
+#
+# A copy of the GNU General Public License can be found at
+# <http://www.gnu.org/licenses/>.
+
+
+WIDGET_SPEC="battery,2,cpu,2,temperature,3,mail,usb_mount,1"
+
+SCREEN_WIDTH=1400
+SCREEN_HEIGHT=1050
+
+BROWSER="firefox"
+
+BG='black'        # dzen backgrounad
+FG='#aaa'         # dzen foreground
+FONT='fixed-8'    # font
+HEIGHT=16         # height of the dzen bar
+LEFT=610          # position of left edge of bar from left edge of screen
+RIGHT=330         # position of right edge of bar from right edge of screen
+SLEEP_AC=2        # time interval in seconds when running on ac power
+SLEEP_BATTERY=15  # time interval in seconds when running on battery power
+
+GUAGE_WIDTH=50    # width of horizontal gauges
+GUAGE_HEIGHT=7    # height of horizontal gauges
+GUAGE_FG='#aaa'   # color of guages
+GUAGE_BG='#666'   # color of gauge background
+
+ICON_DIR="$HOME/.dzen-bar/icons"
+WEATHER_ICON_DIR="$HOME/.dzen-bar/weather"
+
+BATTERY="/proc/acpi/battery/*"
+BATT_MED=25             # percentage of battery life marked as medium
+BATT_LOW=10             # percentage of battery life marked as low
+BATT_MED_COL='orange'   # color when battery is medium
+BATT_LOW_COL='#ff4747'  # color when battery is low
+BATT_ICON="power-bat2.xbm"
+AC_ICON="power-ac.xbm"
+
+TEMP_MED=70
+TEMP_HIGH=80
+TEMP_MED_COL="orange"
+TEMP_HIGH_COL="#ff4747"
+TEMP_ICON="temp.xbm"
+
+CPU_ICON="cpu.xbm"
+CPU_FREQ_MED=1500
+CPU_FREQ_HIGH=2000
+CPU_FREQ_MED_COL='orange'    # color when cpu frequency is medium
+CPU_FREQ_HIGH_COL='#ff4747'  # color when cpu frequency is high
+
+MEM_ICON="mem.xbm"
+
+DATE_FORMAT='%A, %d %b %H:%M'
+
+ETH_INTERFACE="eth0"
+ETH_ICON="net-wired2.xbm"
+WLAN_INTERFACE="wlan0"
+WLAN_ICON="net-wifi.xbm"
+TX_RX_SLEEP_MULTIPLIER=1   # multiplier on SLEEP for TX and RX rate update
+DOWN_ICON="down.xbm"
+UP_ICON="up.xbm"
+
+MAIL_BOXES="$HOME/maildir/ $HOME/.offlineimap/MyAccount/INBOX/"
+MAIL_QUEUE="$HOME/.msmtp.queue/"
+#MAIL_CLICK_CMD="xdotool key super+F1"    # use array if MAIL_AGGREGATE != yes
+#MAIL_CLICK_CMD[0]="xdotool key super+F1; xdotool key M"
+#MAIL_CLICK_CMD[1]="xdotool key super+F1; xdotool key O"
+MAIL_SLEEP_MULTIPLIER=1
+MAIL_COUNT='yes'
+MAIL_AGGREGATE='no'
+MAIL_NEW_COL='yellow'
+MAIL_OLD_COL='orange'
+MAIL_QUEUED_COL='yellow'
+MAIL_FLAGGED_COL='red'
+MAIL_SHOW_OLD='yes'
+MAIL_SHOW_FLAGGED='yes'
+MAIL_SHOW_QUEUED='yes'
+MAIL_READ_ICON="envelope_closed.xbm"
+MAIL_UNREAD_ICON="envelope_open.xbm"
+MAIL_QUEUED_ICON="email.xpm"
+MAIL_ICON_ALERT_COL='yellow'
+
+WEATHER_LOCATION=8
+WEATHER_URL="http://newsrss.bbc.co.uk/weather/forecast/$WEATHER_LOCATION/Next3DaysRSS.xml"
+WEATHER_CLICK_URL="http://news.bbc.co.uk/weather/forecast/$LOCATION"
+WEATHER_SLEEP_MULTIPLIER=150
+WEATHER_MAX_COL='#f66'
+WEATHER_MIN_COL='blue'
+WEATHER_LOG_UNKNOWN="$HOME/.dzen-bar/dzen-status-bar.errors"
+
+USB_MOUNT_ICON="usb-drive.xpm"
+USB_MOUNT_COL="red"
+USB_MOUNT_POINTS=("/mnt/usb" "/mnt/mmc" "/mnt/camera" "/mnt/ipod")
+
+
+
+# process command-line options
+while [ $# -gt 0 ]; do
+    case $1 in
+	-W)
+	    SCREEN_WIDTH=$2
+	    shift
+	    shift
+	    ;;
+	-w)
+	    OPT_WIDTH=$2
+	    shift
+	    shift
+	    ;;
+	-r)
+	    OPT_RIGHT=$2
+	    shift
+	    shift
+	    ;;
+	-l)
+	    OPT_LEFT=$2
+	    shift
+	    shift
+	    ;;
+	-h)
+	    HEIGHT=$2
+	    shift
+	    shift
+	    ;;
+        --sleep-ac)
+            SLEEP_AC=$2
+            shift
+            shift
+            ;;
+        --sleep-battery)
+            SLEEP_BATTERY=$2
+            shift
+            shift
+            ;;
+	--help)
+	    echo "Usage: dzen-status-bar [OPTIONS] [WIDGET-SPEC]"
+	    echo "Display dzen status bar containing a variety of information."
+	    echo
+	    echo "Size and position options:"
+	    echo "-W <pixels>    Screen width"
+	    echo "-h <pixels>    Height of bar"
+	    echo "-w <pixels>    Width of bar"
+	    echo "-l <pixels>    Position of left edge from left of screen"
+	    echo "-r <pixels>    Position of right edge from right of screen"
+	    echo "(if all three of -w, -l and -r are specified, -r is ignored)"
+	    echo
+	    echo "Update frequency options:"
+	    echo "--sleep-ac <secs>        Time between updates on ac power"
+	    echo "--sleep-battery <secs>   Time between updates on battery"
+	    echo
+	    echo
+	    echo "The choice of widgets to display can be specified as a"
+	    echo "comma-delimited string of widget names and separations:"
+	    echo
+	    echo "  WIDGET-SPEC = [widget1[,<widget2>|<n>[,<widget3|<n> ... ]]]"
+	    echo
+	    echo "For example:"
+	    echo
+	    echo  "  battery,2,cpu,2,temperature,3,mail,usb_mount,1"
+	    echo
+	    echo "Numbers specify how many spaces should separate the adjacent"
+	    echo "widgets. (No number means no separating space.)"
+	    echo
+	    echo "The following widgets are available: battery, cpu, cpufreq,"
+	    echo "memory, temperature, eth, wlan, eth_wlan, mail, usb_mount,"
+	    echo "clock, weather."
+	    exit
+	    ;;
+	*)
+	    WIDGET_SPEC=$1
+	    shift
+	    ;;
+    esac
+done
+
+# process widget spec
+IFS="," read -r -a WIDGETS <<< "$WIDGET_SPEC"
+
+# process position and width options
+if [ -n "$OPT_WIDTH" -o -n "$OPT_LEFT" -o -n "$OPT_RIGHT" ]; then
+    WIDTH="$OPT_WIDTH"
+    LEFT="$OPT_LEFT"
+    RIGHT="$OPT_RIGHT"
+fi
+
+
+
+
+# =============== battery monitor ===============
+
+battery () {
+    # get average percentage remaining when multiple batteries are present
+    BATT_PERCENT=$(acpitool -b | grep 'All batteries' | sed -e 's/.*All batteries *: *\([0-9.]*\)%.*/\1/')
+    # get remaining time
+    BATT_TIME=$(acpitool -b | grep 'All batteries' | sed -e 's/.*All batteries *: *\([0-9.]*\)%, *\([0-9:]*\).*/\2/' | sed 's/\([0-9]*:[0-9]*\).*/\1/')
+
+    # get percentage and time remaining when only one battery is present
+    if [ x"$BATT_PERCENT" == "x" ]; then
+	BATT_PERCENT=$(acpitool -b | grep 'Battery #1' | sed -e 's/.*Battery #1 *: *.*, *\([0-9]*\)\..*%.*/\1/')
+	BATT_TIME=$(acpitool -b | grep 'Battery #1' | sed -e 's/.*Battery #1 *: *.*, *\([0-9]*\)\..*%,\? *\(.*\)/\2/' | sed 's/\(.*:.*\):.*/\1/' | grep -v '-')
+    fi
+
+    # check if we're plugged in
+    AC=$(on_ac_power && echo 1)
+    # if plugged in, only display remaining charging time if non-zero
+    if [ x"$AC" == x"1" ]; then
+    	BATT_TIME=${BATT_TIME%%00:00}
+    fi
+
+
+    # set colour according to battery level
+    if [ x"$AC" == x"1" ]; then
+	COL=$GUAGE_FG
+    elif [ $BATT_PERCENT -le $BATT_LOW ]; then
+	COL=$BATT_LOW_COL
+    elif [ $BATT_PERCENT -le $BATT_MED ]; then
+	COL=$BATT_MED_COL
+    else
+	COL=$GUAGE_FG
+    fi
+
+    # set icon according to whether we're on ac power
+    if [ x"$AC" == x"1" ]; then
+	ICON=$AC_ICON
+    else
+	ICON=$BATT_ICON
+    fi
+
+    # output bar and icon as dzen string
+    BATT_BAR=$(echo -n $BATT_PERCENT | gdbar -h $GUAGE_HEIGHT -w $GUAGE_WIDTH -fg $COL -bg $GUAGE_BG -nonl)
+    echo -n "^fg($COL)^i($ICON_DIR/$ICON)^fg() $BATT_BAR $BATT_TIME"
+}
+
+
+
+# =============== temperature monitor ===============
+
+temperature () {
+    #TEMP=$(acpitool -t | line | cut -d" " -f8)
+    TEMP=$(sensors | sed -n '/acpitz/ { n; n; s/^temp[0-9]:[ ]*[+-]\([0-9]\+\).*/\1/p }')
+    if [ "$TEMP" -ge "$TEMP_HIGH" ]; then
+	COL=$TEMP_HIGH_COL
+    elif [ "$TEMP" -ge "$TEMP_MED" ]; then
+	COL=$TEMP_MED_COL
+    else
+	COL=$FG
+    fi
+    echo -n "^fg($COL)^i($ICON_DIR/$TEMP_ICON) ${TEMP}°C^fg()"
+}
+
+
+
+# =============== cpu usage monitor ===============
+
+cpu () {
+    # use gcpubar to produce cpu bar
+    # note: have to run it twice before it can return sensible values
+    CPU_BAR=$(gcpubar -i $SLEEP -c 2 -h $GUAGE_HEIGHT -w $GUAGE_WIDTH -fg $GUAGE_FG -bg $GUAGE_BG | tail -n 1 | tr -d \n)
+    CPU_PERCENT=$(printf "%3d\n" $(( 100 * $(echo "$CPU_BAR" | sed 's/.*^r(\([0-9]*\)x.*^r.*/\1/') / $GUAGE_WIDTH )))
+
+    # get average cpu frequency
+    i=0
+    CPU_FREQ=0
+    while true; do
+	F=$(cat /proc/cpuinfo | sed -n -e "/processor.*:.*/h" -e "/cpu MHz/{ x; /processor.*: $i/{ x; s/cpu MHz.*: \([0-9]*\).*/\1/; p}}")
+	if [ -n "$F" ]; then
+	    CPU_FREQ=$(( $CPU_FREQ + $F ))
+	    i=$(( $i + 1))
+	else
+	    break
+	fi
+    done
+    CPU_FREQ=$(( $CPU_FREQ / $i ))
+
+    # set icon colour according to cpu frequency
+    if [ $CPU_FREQ -ge $CPU_FREQ_HIGH ]; then
+	COL=$CPU_FREQ_HIGH_COL
+    elif [ $CPU_FREQ -ge $CPU_FREQ_MED ]; then
+	COL=$CPU_FREQ_MED_COL
+    else
+	COL=$GUAGE_FG
+    fi
+
+    # output bar and icon as dzen string
+    echo -n "^fg($COL)^i($ICON_DIR/$CPU_ICON)^fg() $CPU_BAR $CPU_PERCENT%"
+}
+
+
+
+# =============== cpu frequency monitor ===============
+
+cpufreq () {
+    i=0
+    while true; do
+	F=$(cat /proc/cpuinfo | sed -n -e "/processor.*:.*/h" -e "/cpu MHz/{ x; /processor.*: $i/{ x; s/cpu MHz.*: \([0-9]*\).*/\1/; p}}")
+	if [ -n "$F" ]; then
+	    eval CPU${i}_FREQ=$F
+	    i=$(( $i + 1))
+	else
+	    break
+	fi
+    done
+    NUM_CPUS=$i
+
+    # output dzen string for each CPU
+    for (( i=0; i<$NUM_CPUS; i++ )); do
+	F=CPU${i}_FREQ
+	echo -n "${!F}"
+	[ $(( $i + 1 )) -lt $NUM_CPUS ] && echo -n ","
+    done
+    echo -n " MHz"
+}
+
+
+
+# =============== memory usage monitor ===============
+
+memory () {
+    # get total and free memory
+    MEM_TOT=$(cat /proc/meminfo | grep 'MemTotal' | awk '{ print $2 }')
+    MEM_FREE=$(cat /proc/meminfo | grep 'MemFree' | awk '{ print $2 }')
+    MEM_BAR=$(echo -n "$(($MEM_TOT - $MEM_FREE)) $MEM_TOT" | gdbar -h $GUAGE_HEIGHT -w $GUAGE_WIDTH -fg $GUAGE_FG -bg $GUAGE_BG -nonl)
+    MEM_PERCENT=$(printf "%3d\n" $((100 * ($MEM_TOT - $MEM_FREE) / $MEM_TOT)))
+
+    # output bar and icon as dzen string
+    echo -n "^i($ICON_DIR/$MEM_ICON) $MEM_BAR $MEM_PERCENT%"
+}
+
+
+
+# =============== date and time ===============
+
+clock () {
+    echo -n $(date +"$DATE_FORMAT")
+}
+
+
+
+# =============== wired interface monitor ===============
+
+ETH_COUNTER=$TX_RX_SLEEP_MULTIPLIER
+eth () {
+    # check if interface is active
+    ETH_IP=$(/sbin/ifconfig $ETH_INTERFACE 2> /dev/null | sed -ne '/inet addr/{ s/.*inet addr:\([^ ]*\) .*/\1/; p }' | grep -v '169\.254\.[0-9]\{1,3\}\.[0-9]\{1,3\}')
+    if [ -n "$ETH_IP" ]; then
+
+	# update received/transmitted rates if interval since
+	# last update is long enough
+	if [ $ETH_COUNTER -ge $TX_RX_SLEEP_MULTIPLIER ]; then
+	    tx_rx_rate $ETH_INTERFACE
+	    ETH_RATE="${RXR} ${RXR_UNIT}^fg(#80AA83)^p(3)^i($ICON_DIR/$DOWN_ICON)^fg()${TXR} ${TXR_UNIT}^fg(orange3)^i($ICON_DIR/$UP_ICON)^fg()"
+	    ETH_COUNTER=0
+	else
+	    ETH_COUNTER=$(( $ETH_COUNTER + 1 ))
+	fi
+
+	# output dzen string
+	echo -n "^i($ICON_DIR/$ETH_ICON) $ETH_RATE"
+    fi
+}
+
+
+
+# =============== wifi interface monitor ===============
+
+WLAN_COUNTER=$TX_RX_SLEEP_MULTIPLIER
+wlan () {
+    # check if interface is active
+    WLAN_IP=$(/sbin/ifconfig $WLAN_INTERFACE 2> /dev/null | sed -ne '/inet addr/{ s/.*inet addr:\([^ ]*\) .*/\1/; p }' | grep -v '169\.254\.[0-9]\{1,3\}\.[0-9]\{1,3\}')
+    if [ -n "$WLAN_IP" ]; then
+
+	# update received/transmitted rates if interval since
+	# last update is long enough
+	if [ $WLAN_COUNTER -ge $TX_RX_SLEEP_MULTIPLIER ]; then
+	    tx_rx_rate $WLAN_INTERFACE
+	    WLAN_RATE="${RXR} ${RXR_UNIT}^fg(#80AA83)^p(3)^i($ICON_DIR/$DOWN_ICON)^fg()${TXR} ${TXR_UNIT}^fg(orange3)^i($ICON_DIR/$UP_ICON)^fg()"
+	    WLAN_COUNTER=0
+	else
+	    WLAN_COUNTER=$(( $WLAN_COUNTER + 1 ))
+	fi
+
+	# get signal strength
+	WLAN_SIGNAL=$( /sbin/iwconfig $WLAN_INTERFACE | sed -ne '/Link Quality/ { s:.*Link Quality=\([0-9]+/[0-9]+\).*:\1/p }' )
+	WLAN_SIGNAL_MAX=${WLAN_SIGNAL#*/}
+	WLAN_SIGNAL=${WLAN_SIGNAL%/*}
+	# sed substitution moves bar up
+	WLAN_BAR=$(echo $WLAN_SIGNAL | gdbar -max $WLAN_SIGNAL_MAX -s v -h $(( $HEIGHT - 2 )) -ss 1 -sh 2 -sw 12 -fg green -bg $GUAGE_BG -nonl | sed -e 's/+7)/+5)/' -e 's/+4)/+2)/' -e 's/+1)/-1)/' -e 's/-2)/-4)/')
+#	# sed substitution makes first bar thinner, which looks better
+#	WLAN_BAR=$(echo $WLAN_SIGNAL | gdbar -max $WLAN_SIGNAL_MAX -s v -h $(( $HEIGHT - 1 )) -ss 1 -sh 2 -sw 12 -fg green -bg $GUAGE_BG -nonl | sed -e 's/x2/x1/')
+
+	# output dzen string
+	echo -n "^i($ICON_DIR/$WLAN_ICON) $WLAN_BAR $WLAN_RATE"
+    fi
+}
+
+
+
+# =============== combined wired and wireless monitor ===============
+
+ETH_WLAN_COUNTER=$TX_RX_SLEEP_MULTIPLIER
+eth_wlan () {
+    ICON=""; WLAN_BAR=""
+
+    # check if ETH interface is active
+    ETH_IP=$(/sbin/ifconfig $ETH_INTERFACE 2> /dev/null | sed -ne '/inet addr/{ s/.*inet addr:\([^ ]*\) .*/\1/; p }' | grep -v '169\.254\.[0-9]\{1,3\}\.[0-9]\{1,3\}')
+    if [ -n "$ETH_IP" ]; then
+	# display interface icon
+	ICON="^i($ICON_DIR/${ETH_ICON})"
+    fi
+
+    # check if WLAN interface is active
+    WLAN_IP=$(/sbin/ifconfig $WLAN_INTERFACE 2> /dev/null | sed -ne '/inet addr/{ s/.*inet addr:\([^ ]*\) .*/\1/; p }' | grep -v '169\.254\.[0-9]\{1,3\}\.[0-9]\{1,3\}')
+    if [ -n "$WLAN_IP" ]; then
+        # display interface icon
+	if [ -n "$ICON" ]; then
+	    ICON="${ICON} ^i($ICON_DIR/${WLAN_ICON})"
+	else
+	    ICON="^i($ICON_DIR/${WLAN_ICON})"
+	fi
+
+	WLAN_SIGNAL=$( /sbin/iwconfig $WLAN_INTERFACE | sed -ne '/Link Quality/ { s:.*Link Quality=\([0-9]\+/[0-9]\+\).*:\1:p }' )
+	WLAN_SIGNAL_MAX=${WLAN_SIGNAL#*/}
+	WLAN_SIGNAL=${WLAN_SIGNAL%/*}
+	# sed substitution moves bar up
+	WLAN_BAR=$(echo $WLAN_SIGNAL | gdbar -max $WLAN_SIGNAL_MAX -s v -h $(( $HEIGHT - 2 )) -ss 1 -sh 2 -sw 12 -fg green -bg $GUAGE_BG -nonl | sed -e 's/+7)/+5)/' -e 's/+4)/+2)/' -e 's/+1)/-1)/' -e 's/-2)/-4)/')
+	ICON="${ICON} ${WLAN_BAR}"
+    fi
+
+    # update received/transmitted rates if at least one interface is up
+    # and interval since last update is long enough
+    if [ -n "$ICON" -a $ETH_WLAN_COUNTER -ge $TX_RX_SLEEP_MULTIPLIER ]; then
+	if [ -n "$ETH_IP" -a -n "$WLAN_IP" ]; then
+	    tx_rx_rate $ETH_INTERFACE $WLAN_INTERFACE
+	elif [ -n "$ETH_IP" ]; then
+	    tx_rx_rate $ETH_INTERFACE
+	elif [ -n "$WLAN_IP" ]; then
+	    tx_rx_rate $WLAN_INTERFACE
+	fi
+	ETH_WLAN_RATE="${RXR} ${RXR_UNIT}^fg(#80AA83)^p(3)^i($ICON_DIR/$DOWN_ICON)^fg()${TXR} ${TXR_UNIT}^fg(orange3)^i($ICON_DIR/$UP_ICON)^fg()"
+	ETH_WLAN_COUNTER=0
+    else
+	ETH_WLAN_COUNTER=$(( $ETH_WLAN_COUNTER + 1 ))
+    fi
+
+    # output dzen string
+    [ -n "$ICON" ] && echo -n "$ICON $ETH_WLAN_RATE"
+}
+
+
+
+# =============== mail monitor ===============
+
+MAIL_COUNTER=$MAIL_SLEEP_MULTIPLIER
+mail () {
+
+    # update email counts if interval since last update is long enough
+    if [ $MAIL_COUNTER -ge $MAIL_SLEEP_MULTIPLIER ]; then
+	MAIL_COUNTER=0
+	# count mail in mailboxes
+	n=0
+	for BOX in $MAIL_BOXES; do
+	    NEW[$n]=$(ls $BOX/new | wc -l)
+	    [ "$MAIL_SHOW_OLD" == "yes" ] && OLD[$n]=$(ls $BOX/cur | grep '.*,[^S,]*$' | wc -l)
+	    [ "$MAIL_SHOW_FLAGGED" == "yes" ] && FLAG[$n]=$(ls $BOX/cur | grep '.*,F[^,]*$' | wc -l)
+	    n=$(( $n + 1 ))
+	done
+	# count queued mail
+	[ "$MAIL_SHOW_QUEUED" == "yes" ] && QUEUED=$( ls "$MAIL_QUEUE"/*.mail 2> /dev/null | wc -l)
+    else
+	MAIL_COUNTER=$(( $MAIL_COUNTER + 1 ))
+    fi
+
+    # if displaying aggregate totals across all mailboxes
+    if [ "$MAIL_AGGREGATE" == "yes" ]; then
+	# TODO: replace this loop with more elegant shell magic?
+	TOT_NEW=0; TOT_OLD=0; TOT_FLAG=0
+	for (( i=0; i<$n; i++ )); do
+	    TOT_NEW=$(( $TOT_NEW + ${NEW[$i]} ))
+	    [ "$MAIL_SHOW_OLD" == "yes" ] && TOT_OLD=$(( $TOT_OLD + ${OLD[$i]} ))
+	    [ "$MAIL_SHOW_FLAGGED" == "yes" ] && TOT_FLAG=$(( $TOT_FLAG + ${FLAG[$i]} ))
+	done
+	# if displaying mail counts
+	if [ "$MAIL_COUNT" == "yes" ]; then
+	    if [ -n "$MAIL_UNREAD_ICON" -o $TOT_NEW -gt 0 -o $TOT_OLD -gt 0 ]; then
+                # clickable area command
+		echo -n "^ca(1,/bin/bash -c '$MAIL_CLICK_CMD')"
+		# new mail
+		if [ $TOT_NEW -gt 0 ]; then
+		    echo -n "^fg($MAIL_ICON_ALERT_COL)^i($ICON_DIR/$MAIL_UNREAD_ICON)^fg() ^fg($MAIL_NEW_COL)$TOT_NEW^fg()"
+		elif [ -n "$MAIL_READ_ICON" ]; then
+		    echo -n "^i($ICON_DIR/$MAIL_READ_ICON) $TOT_NEW"
+		fi
+		# old mail
+		if [ "$MAIL_SHOW_OLD" == "yes" ]; then
+		    if [ $TOT_OLD -gt 0 ]; then
+			echo -n "(^fg($MAIL_OLD_COL)$TOT_OLD^fg())"
+		    fi
+		fi
+		# flagged mail
+		if [ "$MAIL_SHOW_FLAGGED" == "yes" ]; then
+		    if [ $TOT_FLAG -gt 0 ]; then
+			echo -n "[^fg($MAIL_FLAGGED_COL)$TOT_FLAG^fg()]"
+		    fi
+		fi
+		echo -n "^ca()"
+	    fi
+	# if not displaying mail counts
+	else
+            # clickable area command
+	    echo -n "^ca(1,/bin/bash -c '$MAIL_CLICK_CMD')"
+	    if [ $TOT_NEW -gt 0 ]; then
+		echo -n "^fg($MAIL_ICON_ALERT_COL)^i($ICON_DIR/$MAIL_UNREAD_ICON)^fg()"
+	    elif [ -n "$MAIL_READ_ICON" ]; then
+		echo -n "^i($ICON_DIR/$MAIL_READ_ICON)"
+	    fi
+	    echo -n "^ca()"
+	fi
+
+    # if displaying totals for each mailbox separately
+    else
+	# if displaying mail counts
+	if [ "$MAIL_COUNT" == "yes" ]; then
+	    for (( i=0; i<$n; i++ )); do
+		if [ -n "$MAIL_READ_ICON" -o ${NEW[$i]} -gt 0 -o ${OLD[$i]} -gt 0 ]; then
+		    [ $i -gt 0 ] && echo -n "  "
+		    # clickable area command
+		    echo -n "^ca(1,/bin/bash -c '${MAIL_CLICK_CMD[$i]}')"
+		    # new mail
+		    if [ ${NEW[$i]} -gt 0 ]; then
+			echo -n "^fg($MAIL_ICON_ALERT_COL)^i($ICON_DIR/$MAIL_UNREAD_ICON)^fg() ^fg($MAIL_NEW_COL)${NEW[$i]}^fg()"
+		    elif [ -n "$MAIL_READ_ICON" ]; then
+			echo -n "^i($ICON_DIR/$MAIL_READ_ICON) ${NEW[$i]}"
+		    fi
+		    # old mail
+		    if [ "$MAIL_SHOW_OLD" == "yes" ]; then
+			if [ ${OLD[$i]} -gt 0 ]; then
+			    echo -n "(^fg($MAIL_OLD_COL)${OLD[$i]}^fg())"
+			fi
+		    fi
+		    # flagged mail
+		    if [ "$MAIL_SHOW_FLAGGED" == "yes" ]; then
+			if [ ${FLAG[$i]} -gt 0 ]; then
+			    echo -n "[^fg($MAIL_FLAGGED_COL)${FLAG[$i]}^fg()]"
+			fi
+		    fi
+		    echo -n "^ca()"
+		fi
+	    done
+	# if not displaying mail counts
+	else
+	    for (( i=0; i<$n; i++ )); do
+		[ $i -gt 0 ] && echo -n " "
+		# clickable area command
+		echo -n "^ca(1,/bin/bash -c '${MAIL_CLICK_CMD[$i]}')"
+		if [ ${NEW[$i]} -gt 0 ]; then
+		    echo -n "^fg($MAIL_ICON_ALERT_COL)^i($ICON_DIR/$MAIL_UNREAD_ICON)^fg()"
+		elif [ -n "$MAIL_READ_ICON" ]; then
+		    echo -n "^i($ICON_DIR/$MAIL_READ_ICON)"
+		fi
+		echo -n "^ca()"
+	    done
+	fi
+    fi
+
+    # if displaying queued mail
+    if [ "$MAIL_SHOW_QUEUED" == "yes" ]; then
+	if [ $QUEUED -gt 0 ]; then
+	    echo -n "  ^fg($MAIL_ICON_ALERT_COL)^i($ICON_DIR/$MAIL_QUEUED_ICON)^fg()"
+	    # if displaying mail counts
+	    [ "$MAIL_COUNT" == "yes" ] && echo -n " ^fg($MAIL_QUEUED_COL)$QUEUED^fg()"
+	fi
+    fi
+}
+
+
+
+# =============== weather monitor ===============
+
+WEATHER_COUNTER=$WEATHER_SLEEP_MULTIPLIER
+
+weather () {
+    if [ $WEATHER_COUNTER -ge $WEATHER_SLEEP_MULTIPLIER ]; then
+	WEATHER_COUNTER=0
+	read WEATHER MAX MIN <<EOF
+          $(echo $( \
+	    wget -t 10 -c -q -O - $WEATHER_URL | sed -n -e \
+	    '/^<item>/ {
+              n;
+              s/[^:]*: \([^,]*\), Max Temp: \([0-9]*\)[^,]*, Min Temp: \([0-9]*\).*/\1@\2@\3/;
+              s/ /_/g;
+              s/@/ /g;
+              p;
+              q;
+             }' ))
+EOF
+    else
+	WEATHER_COUNTER=$(( $WEATHER_COUNTER + 1 ))
+    fi
+
+    if [ -n "$WEATHER" ]; then
+	echo -n "^ca(1,$BROWSER '$WEATHER_CLICK_URL')"
+	if [ -f "$WEATHER_ICON_DIR/$WEATHER.xpm" ]; then
+	    echo -n "^i($WEATHER_ICON_DIR/$WEATHER.xpm) "
+	else
+	    [ -n "$WEATHER_LOG_UNKNOWN" ] && \
+		echo "weather: \"$WEATHER\" not recognized" >> $WEATHER_LOG_UNKNOWN
+	    echo -n "?? "
+	fi
+	echo -n "^fg($WEATHER_MAX_COL)$MAX^fg()/^fg($WEATHER_MIN_COL)$MIN^fg()°C^ca()"
+    fi
+}
+
+
+
+# =============== usb drive monitor ===============
+
+usb_mount () {
+    (mount | grep -q "$(echo ${USB_MOUNT_POINTS[*]} | sed 's/ /\\\|/g')") && \
+	echo -n "  ^ca(1,/bin/bash -c 'for d in ${USB_MOUNT_POINTS[*]}; do umount \$d; done')^fg($USB_MOUNT_COL)^i($ICON_DIR/$USB_MOUNT_ICON)^fg()^ca()"
+}
+
+
+
+
+# =============== utility functions ===============
+
+# calculate position and width of dzen bar
+position () {
+    # width
+    if [ x"$WIDTH" =  x ]; then
+	if [ -n "$LEFT" -a -n "$RIGHT" ]; then
+	    WIDTH=$(( $SCREEN_WIDTH - $RIGHT - $LEFT ))
+	elif [ -n "$LEFT" ]; then
+	    WIDTH=$(( $SCREEN_WIDTH - $LEFT ))
+	elif [ -n "$RIGHT" ]; then
+	    WIDTH=$(( $SCREEN_WIDTH - $RIGHT ))
+	else
+	    WIDTH=$SCREEN_WIDTH
+	fi
+    fi
+    # position
+    if [ -n "$LEFT" ]; then
+	X=$LEFT
+    elif [ -n "$RIGHT" ]; then
+	X=$(( $SCREEN_WIDTH - $WIDTH - $RIGHT ))
+    else
+	X=0
+    fi
+    Y=0
+}
+
+
+# separator
+# (pass number of spaces as first argument)
+sep () {
+    for ((i=0; i<$1; i++)); do
+	echo -n " "
+    done
+}
+
+
+# calculate receive/transmit rate for interface
+# (pass interface names as arguments)
+tx_rx_rate () {
+    RXR=0; TXR=0
+
+    # gather data for all specified interfaces
+    while [ -n "$1" ]; do
+        # get previous received/transmitted byte counts and sample time
+	RXB=${1}_RXB; RXB=${!RXB}
+	TXB=${1}_TXB; TXB=${!TXB}
+	TIME=${1}_TIME; TIME=${!TIME}
+	[ x"$RXB" = "x" ] && RXB=$(cat /sys/class/net/${1}/statistics/rx_bytes)
+	[ x"$TXB" = "x" ] && TXB=$(cat /sys/class/net/${1}/statistics/tx_bytes)
+	[ x"$TIME" = "x" ] && TIME=0
+
+        # get new received/transmitted byte counts
+	RXBN=$(cat /sys/class/net/${1}/statistics/rx_bytes)
+	TXBN=$(cat /sys/class/net/${1}/statistics/tx_bytes)
+	TIMEN=$(date '+%s.%N')
+	T=$(echo "$TIMEN - $TIME" | bc)
+
+        # calculate received rate
+	R=$(echo "($RXBN - $RXB) / $T" | bc)
+	RXR=$(( $RXR + $R ))
+
+	# calculate transmitted rate
+	R=$(echo "($TXBN - $TXB) / $T" | bc)
+	TXR=$(( $TXR + $R ))
+
+        # store received/transmitted byte counts
+	eval ${1}_RXB=$RXBN
+	eval ${1}_TXB=$TXBN
+	eval ${1}_TIME=$TIMEN
+
+	shift
+    done
+
+
+    # rescale transmitted rate in specified units
+    if [ $RXR == 0 ]; then
+	L=0
+    else
+	L=$(echo "scale=5; x=l($RXR)/l(10); scale=0; x/3" | bc -l)
+    fi
+    case $L in
+	0)
+	    RXR_UNIT="B/s"
+	    RXR=$(printf " %3d\n" $(echo "$RXR" | bc))
+	    ;;
+	1)
+	    RXR_UNIT="kB/s"
+	    RXR=$(printf "%3d\n" $(echo "$RXR/1000" | bc))
+	    ;;
+	2)
+	    RXR_UNIT="MB/s"
+	    RXR=$(printf "%3d\n" $(echo "$RXR/1000^2" | bc))
+	    ;;
+	3)
+	    RXR_UNIT="GB/s"
+	    RXR=$(printf "%3d\n" $(echo "$RXR/1000^3" | bc))
+	    ;;
+    esac
+
+    # rescale received rate in specified units
+    if [ $TXR == 0 ]; then
+	L=0
+    else
+	L=$(echo "scale=5; x=l($TXR)/l(10); scale=0; x/3" | bc -l)
+    fi
+    case $L in
+	0)
+	    TXR_UNIT="B/s"
+	    TXR=$(printf " %3d\n" $(echo "$TXR" | bc))
+	    ;;
+	1)
+	    TXR_UNIT="kB/s"
+	    TXR=$(printf "%3d\n" $(echo "$TXR/1000" | bc))
+	    ;;
+	2)
+	    TXR_UNIT="MB/s"
+	    TXR=$(printf "%3d\n" $(echo "$TXR/1000^2" | bc))
+	    ;;
+	3)
+	    TXR_UNIT="GB/s"
+	    TXR=$(printf "%3d\n" $(echo "$TXR/1000^3" | bc))
+	    ;;
+    esac
+}
+
+
+
+
+
+
+
+# =============== main loop ===============
+
+# initialization
+position
+
+
+# start off with short sleep value, to get cpu widget to display something quickly
+SLEEP=1
+
+
+# status update loop
+while true; do
+
+    # run specified widgets
+    for w in ${WIDGETS[@]}; do
+	case $w in
+	    cpu)
+                # divide by 2 as cpu monitor takes two SLEEP intervals to update
+		[ "$w" = "cpu" ] && SLEEP=$(echo "scale=1; $SLEEP/2" | bc)
+		cpu
+		;;
+
+	    [0-9]*)
+		sep $w
+		;;
+
+	    eth_wlan|battery|memory|temperature|clock|mail|usb_mount|weather)
+		eval $w
+		;;
+	esac
+    done
+    echo
+
+    # adjust SLEEP value depending on power source
+    if on_ac_power; then
+	SLEEP=$SLEEP_AC
+    else
+	SLEEP=$SLEEP_BATTERY
+    fi
+    sleep $SLEEP
+done | dzen2 -ta r -tw $WIDTH -h $HEIGHT -x $X -y $Y -fg $FG -bg $BG -fn $FONT -e ''

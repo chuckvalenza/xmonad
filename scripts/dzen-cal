@@ -1,0 +1,154 @@
+#!/bin/bash
+#
+# pop-up calendar for dzen
+
+SCREEN_WIDTH=1400   # screen width
+
+BG='black'      # dzen backgrounad
+FG='#aaa'       # dzen foreground
+FONT='fixed-8'  # font
+RIGHT=0         # position of right of dzen bar from right edge of screen
+WIDTH=140       # width of the dzen bar
+HEIGHT=16       # height of the dzen bar
+SLEEP=60        # update interval in seconds
+
+DATE_FORMAT='%A, %d %b %H:%M'   # format string for 'date'
+CAL_OPTIONS='-s'
+
+
+# process command-line options
+while [ $# -gt 0 ]; do
+    case $1 in
+	-W)
+	    SCREEN_WIDTH=$2
+	    shift
+	    shift
+	    ;;
+	-w)
+	    OPT_WIDTH=$2
+	    shift
+	    shift
+	    ;;
+	-r)
+	    OPT_RIGHT=$2
+	    shift
+	    shift
+	    ;;
+	-l)
+	    OPT_LEFT=$2
+	    shift
+	    shift
+	    ;;
+	-h)
+	    HEIGHT=$2
+	    shift
+	    shift
+	    ;;
+	--sleep)
+	    SLEEP=$2
+	    shift
+	    shift
+	    ;;
+	--date)
+	    DATE_FORMAT=$2
+	    shift
+	    shift
+	    ;;
+	--cal)
+	    CAL_OPTIONS="$2"
+	    shift
+	    shift
+	    ;;
+	--help)
+	    echo "Usage: dzen-cal [OPTIONS]"
+	    echo "Display clock and calendar dzen bar."
+	    echo
+	    echo "Size and position options:"
+	    echo "(if all three of -w, -l and -r are specified, -r is ignored)"
+	    echo "-W <pixels>    Screen width"
+	    echo "-h <pixels>    Height of bar"
+	    echo "-w <pixels>    Width of bar"
+	    echo "-l <pixels>    Position of left edge from left of screen"
+	    echo "-r <pixels>    Position of right edge from right of screen"
+	    echo
+	    echo "Other options:"
+	    echo "--sleep <secs>      Time between updates"
+	    echo "--date <format>     Format string for 'date' command"
+	    echo "--cal <opts>        Options to pass to 'cal' command"
+	    exit
+	    ;;
+    esac
+done
+
+# process position and width arguments
+if [ -n "$OPT_WIDTH" -o -n "$OPT_LEFT" -o -n "$OPT_RIGHT" ]; then
+    WIDTH="$OPT_WIDTH"
+    LEFT="$OPT_LEFT"
+    RIGHT="$OPT_RIGHT"
+fi
+
+
+
+
+# calculate position and width of dzen bar
+position () {
+    # width
+    if [ x"$WIDTH" =  x ]; then
+	if [ -n "$LEFT" -a -n "$RIGHT" ]; then
+	    WIDTH=$(( $SCREEN_WIDTH - $RIGHT - $LEFT ))
+	elif [ -n "$LEFT" ]; then
+	    WIDTH=$(( $SCREEN_WIDTH - $LEFT ))
+	elif [ -n "$RIGHT" ]; then
+	    WIDTH=$(( $SCREEN_WIDTH - $RIGHT ))
+	else
+	    WIDTH=$SCREEN_WIDTH
+	fi
+    fi
+    # position
+    if [ -n "$LEFT" ]; then
+	X=$LEFT
+    elif [ -n "$RIGHT" ]; then
+	X=$(( $SCREEN_WIDTH - $WIDTH - $RIGHT ))
+    else
+	X=0
+    fi
+    Y=0
+}
+
+
+
+
+# initialization
+position
+TODAY="0"
+
+
+# main loop
+while true; do
+    TODAY=`date +'%_d'`
+    MONTH=`date +'%m'`; MONTH=${MONTH#0}
+    YEAR=`date +'%Y'`
+
+    # title contains current date and time
+    echo "^tw()"`date +"$DATE_FORMAT"`
+    echo "^cs()"
+    echo
+
+    # current month, highlight header and today
+    cal $CAL_OPTIONS | sed -r -e "1,2 s/.*/^fg(white)&^fg()/" -e "s/(^| )($TODAY)($| )/\1^bg(white)^fg(#111)\2^fg()^bg()\3/" | sed 's/\(.*\)/  \1/'
+    LC=`cal $CAL_OPTIONS | wc -l`
+
+    # next month, highlight header
+    [ $MONTH -eq 12 ] && YEAR=$(( $YEAR + 1 ))
+    MONTH=$(( ($MONTH + 1) % 12 ))
+    [ $MONTH -eq 0 ] && MONTH=12
+    cal $CAL_OPTIONS $MONTH $YEAR | sed -e "1,2 s/.*/^fg(white)&^fg()/" | sed 's/\(.*\)/  \1/'
+
+    # next month but one, highlight header
+    [ $MONTH -eq 12 ] && YEAR=$(( $YEAR + 1 ))
+    MONTH=$(( ($MONTH + 1) % 12 ))
+    [ $MONTH -eq 0 ] && MONTH=12
+    cal $CAL_OPTIONS $MONTH $YEAR | sed -e "1,2 s/.*/^fg(white)&^fg()/" | sed 's/\(.*\)/  \1/'
+
+    sleep $SLEEP
+done | dzen2 -ta r -tw $WIDTH -h $HEIGHT -x $X -y $Y -w $WIDTH -bg $BG -fn 'fixed-8' -l 26 -sa l -e 'entertitle=uncollapse;leavetitle=collapse'

@@ -1,0 +1,328 @@
+#!/bin/bash
+#
+# Dzen BBC weather forecast
+# Copyright (C) 2010-2011 Toby Cubitt (toby@dr-qubit.org)
+#
+# dzen-weather is free software: you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by the Free
+# Software Foundation, either version 3 of the License, or (at your option)
+# any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+# FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+# more details.
+#
+# A copy of the GNU General Public License can be found at
+# <http://www.gnu.org/licenses/>.
+
+
+SCREEN_WIDTH=1400   # screen width
+
+BROWSER='firefox'
+
+BG='black'               # dzen backgrounad
+FG='#aaa'                # dzen foreground
+FONT='fixed-8'           # font
+RIGHT=0                  # position of right of dzen bar from right edge of screen
+WIDTH=$(( 70 + 140 ))    # width of the dzen bar
+HEIGHT=16                # height of the dzen bar
+SLEEP=300                # update interval in seconds
+WEATHER_LINES=10         # max number of weather entries to fit without scrolling
+
+DEFAULT_LOCATION='London'
+URL='http://newsrss.bbc.co.uk/weather/forecast/LOCATION/Next3DaysRSS.xml'
+URL_24h='http://news.bbc.co.uk/weather/forecast/LOCATION?state=fo:B#fo:B'
+URL_5DAY='http://news.bbc.co.uk/weather/forecast/LOCATION?state=fo:A#fo:A'
+CLICK_URL='http://news.bbc.co.uk/weather/forecast/LOCATION'
+ICON_DIR="$HOME/.dzen-bar/weather"
+MAX_COL='#f66'
+MIN_COL='blue'
+DATE_FORMAT='+%d %b %H:%M'   # format string for 'date'
+HIDE_UNAVAILABLE_24h='no'
+LOG_DIR="$HOME/.dzen-bar/log/"
+LOG_UNKNOWN_WEATHER='no'
+
+
+
+# weather location codes
+LOC_Berlin=50
+LOC_Bristol=3
+LOC_Cambridge=324
+LOC_Geneva=39
+LOC_Helsinki=34
+LOC_London=8
+LOC_Madrid=43
+LOC_Marseille=41
+LOC_Montreal=271
+LOC_Munich=53
+LOC_New_York=101
+LOC_Oxford=25
+LOC_Prague=55
+LOC_Santa_Barbara=482
+LOC_Stockholm=33
+LOC_Tokyo=87
+LOC_Toronto=98
+LOC_Vienna=54
+
+
+# process command-line options
+while [ $# -gt 0 ]; do
+    case $1 in
+        -W)
+            SCREEN_WIDTH=$2
+            shift
+            shift
+            ;;
+	-w)
+	    OPT_WIDTH=$2
+	    shift
+	    shift
+	    ;;
+	-r)
+	    OPT_RIGHT=$2
+	    shift
+	    shift
+	    ;;
+	-l)
+	    OPT_LEFT=$2
+	    shift
+	    shift
+	    ;;
+        -h)
+            HEIGHT=$2
+            shift
+            shift
+            ;;
+	--lines)
+	    $WEATHER_LINES=$2
+	    shift
+	    shift
+	    ;;
+        --sleep)
+            SLEEP=$2
+            shift
+            shift
+            ;;
+	--location)
+	    DEFAULT_LOCATION="$2"
+	    shift
+	    shift
+	    ;;
+	--date)
+	    DATE_FORMAT="$2"
+	    shift
+	    shift
+	    ;;
+	--browser)
+	    BROWSER="$2"
+	    shift
+	    shift
+	    ;;
+	--help)
+	    echo "Usage: dzen-weather [OPTIONS]"
+	    echo "Display weather forecast dzen bar."
+	    echo
+	    echo "Size and position options:"
+	    echo "(if all three of -w, -l and -r are specified, -r is ignored)"
+	    echo "-W <pixels>    Screen width"
+	    echo "-h <pixels>    Height of bar"
+	    echo "-w <pixels>    Width of bar"
+	    echo "-l <pixels>    Position of left edge from left of screen"
+	    echo "-r <pixels>    Position of right edge from right of screen"
+	    echo
+	    echo "Other options:"
+	    echo "--lines <lines>     Number of forecast lines in drop-down"
+	    echo "--sleep <secs>      Time between updates"
+	    echo "--location <city>   Default location"
+	    echo "--date <format>     Format string for 'date' command"
+	    echo "--browser <prog>    Web browser command"
+	    exit
+	    ;;
+    esac
+done
+
+# process position and width arguments
+if [ -n "$OPT_WIDTH" -o -n "$OPT_LEFT" -o -n "$OPT_RIGHT" ]; then
+    WIDTH="$OPT_WIDTH"
+    LEFT="$OPT_LEFT"
+    RIGHT="$OPT_RIGHT"
+fi
+
+
+
+
+# calculate position and width of dzen bar
+position () {
+    # width
+    if [ x"$WIDTH" =  x ]; then
+	if [ -n "$LEFT" -a -n "$RIGHT" ]; then
+	    WIDTH=$(( $SCREEN_WIDTH - $RIGHT - $LEFT ))
+	elif [ -n "$LEFT" ]; then
+	    WIDTH=$(( $SCREEN_WIDTH - $LEFT ))
+	elif [ -n "$RIGHT" ]; then
+	    WIDTH=$(( $SCREEN_WIDTH - $RIGHT ))
+	else
+	    WIDTH=$SCREEN_WIDTH
+	fi
+    fi
+    # position
+    if [ -n "$LEFT" ]; then
+	X=$LEFT
+    elif [ -n "$RIGHT" ]; then
+	X=$(( $SCREEN_WIDTH - $WIDTH - $RIGHT ))
+    else
+	X=0
+    fi
+    Y=0
+}
+
+
+# set forecast location
+location () {
+    ETH_IP="$(/sbin/ifconfig eth0 | sed -ne '/inet addr:/ { s/.*inet addr:\([^ ]*\).*/\1/; p }')"
+    WLAN_SSID="$(/sbin/iwconfig wlan0 | sed -ne '/ESSID/ { s/.*ESSID:\"\([^\"]*\)\".*/\1/; p }')"
+
+    # try to determine location from hard-coded network connection details
+    if [ "${ETH_IP%.*.*}" == "###<subnet>###" -o "$WLAN_SSID" == "###<ssid>###" ]; then
+	LOCATION='London'
+    elif [ "$WLAN_SSID" == "###<ssid2>###" ]; then
+	LOCATION='Berlin'
+
+    # failing that, try to determine location from ip address using ip-address.com
+    else
+	if [ -n "$ETH_TIP" ]; then
+            IP_LOCATION="$(lynx -dump http://www.ip-adress.com/ip_tracer/?QRY=$ETH_IP | sed -nr s/'^.*My IP address city: (.+)$/\1/p')"
+	elif [ -n "$WLAN_IP" ]; then
+	    IP_LOCATION="$(lynx -dump http://www.ip-adress.com/ip_tracer/?QRY=$WLAN_IP | sed -nr s/'^.*My IP address city: (.+)$/\1/p')"
+	fi
+
+        if [ -n "$IP_LOCATION" ]; then
+            LOCATION="$IP_LOCATION"
+
+        # otherwise, use timezone from TZ environment variable if set
+	elif [ -n "$TZ" ]; then
+            LOCATION="${TZ##*/}"
+
+        # failing that, fall back to default location
+        else
+            LOCATION=$DEFAULT_LOCATION
+        fi
+    fi
+
+    LOC="LOC_${LOCATION// /_}"
+    LOC=${!LOC}
+}
+
+
+
+
+
+# initialization
+position
+
+
+# main loop
+while true; do
+    location
+
+        # update today's forecast file
+        if wget -t 10 -c -q -O - "${URL/LOCATION/$LOC}" > "$LOG_DIR/dzen-weather.html"; then
+            echo -n "${LOCATION// /_} " > "$LOG_DIR/dzen-weather"
+            cat "$LOG_DIR/dzen-weather.html" \
+                | sed -n -e \
+                '/^<item>/ {
+                  n;
+                  /N\/A/ d;
+                  s/[^:]*: \([^,]*\), Max Temp: \(-\?[0-9]*\)[^,]*, Min Temp: \(-\?[0-9]*\).*/\1@\2@\3/;
+                  s/ /_/g;
+                  s/@/ /g;
+                  p;
+                  q;
+                }' >> "$LOG_DIR/dzen-weather"
+        fi
+        rm "$LOG_DIR/dzen-weather.html"
+
+
+        # update 5day forecast file
+        if wget -t 10 -c -q -O "$LOG_DIR/dzen-weather-5day.html" "${URL_5DAY/LOCATION/$LOC}"; then
+            echo "  ^fg(white)Next 5 days^fg()   " > "$LOG_DIR/dzen-weather-5day"
+            lynx -dump "$LOG_DIR/dzen-weather-5day.html" | bbc-weather-5day.awk | awk "{ printf \"  %3s ^i($ICON_DIR/%s.xpm) %5s  \\n\", \$1, \$2, \$3 }" >> "$LOG_DIR/dzen-weather-5day"
+        fi
+        rm "$LOG_DIR/dzen-weather-5day.html"
+
+
+        # update 24h forecast file
+        if wget -t 10 -c -q -O "$LOG_DIR/dzen-weather-24h.html" "${URL_24h/LOCATION/$LOC}"; then
+            cat "$LOG_DIR/dzen-weather-24h.html" | bbc-weather-24h.awk > "$LOG_DIR/dzen-weather-24h.tmp"
+            # outside of the UK, no 24h forecast is available
+            if [ ! -s "$LOG_DIR/dzen-weather-24h.tmp" ]; then
+		NO_24h=1
+                echo "      ^fg(white)Next 24h^fg()     " > "$LOG_DIR/dzen-weather-24h"
+                echo "  (not available)  " >> "$LOG_DIR/dzen-weather-24h"
+            else
+		NO_24h=0
+		echo "      ^fg(white)Next 24h^fg()     " > "$LOG_DIR/dzen-weather-24h"
+		cat "$LOG_DIR/dzen-weather-24h.tmp" | awk "{ printf \"  %-5s ^i($ICON_DIR/%s.xpm) %5s \\n\", \$1, \$2, \$3 }" >> "$LOG_DIR/dzen-weather-24h"
+	    fi
+
+	    rm "$LOG_DIR/dzen-weather-24h.tmp"
+        fi
+        rm "$LOG_DIR/dzen-weather-24h.html"
+
+
+
+
+    # title window
+    echo -n "^tw()"
+    if [ -f "$LOG_DIR/dzen-weather" ]; then
+        read LOCATION WEATHER MAX MIN < "$LOG_DIR/dzen-weather"
+        echo -n "^ca(1,$BROWSER '${CLICK_URL/LOCATION/$LOC}')"
+        if [ -f "$ICON_DIR/$WEATHER.xpm" ]; then
+            echo -n "^i($ICON_DIR/$WEATHER.xpm) "
+        else
+            [ x"$LOG_UNKNOWN_WEATHER" = x'yes' ] && \
+                echo "weather: \"$WEATHER\" not recognized" >> "$LOG_DIR/dzen-weather.errors"
+            echo -n "?? "
+        fi
+        echo "^fg($MAX_COL)$MAX^fg()/^fg($MIN_COL)$MIN^fg()°C^ca()"
+
+
+        # drop-down (slave) window
+	# header
+        echo "^cs()"
+        echo
+        echo -n "    ^fg(white)"
+        echo -n "Location: ${LOCATION//_/ }" | sed -e :a -e 's/^.\{1,28\}$/ &/;ta' -e 's/\( *\)\1/\1/'
+        echo "^fg()"
+        echo -n "     "
+        echo "Updated:" $(ls -l --time-style "${DATE_FORMAT// /_}" "$LOG_DIR/dzen-weather" | awk '{gsub(/_/, " ", $6); print $6}') | sed -e :a -e 's/^.\{1,28\}$/ &/;ta' -e 's/\( *\)\1/\1/'
+        echo
+
+	# content
+        if [ -f "$LOG_DIR/dzen-weather-24h" -a -f "$LOG_DIR/dzen-weather-5day" ]; then
+            LEN_24h=$(cat "$LOG_DIR/dzen-weather-24h" | wc -l)
+            LEN_5DAY=$(cat "$LOG_DIR/dzen-weather-5day" | wc -l)
+            for (( i=0; i<$(($LEN_5DAY-$LEN_24h)); i++ )); do
+                if [ $NO_24h = 1 ]; then
+                    echo "                   " >> "$LOG_DIR/dzen-weather-24h"
+                else
+                    echo "      ^p(16)         " >> "$LOG_DIR/dzen-weather-24h"
+                fi
+            done
+
+            if [ x"$NO_24h" = x'yes' -a "$HIDE_UNAVAILABLE_24h" = x'yes' ]; then
+                cat "$LOG_DIR/dzen-weather-5day" | sed 's/\(.*\)/            \1/'
+            else
+                paste "$LOG_DIR/dzen-weather-24h" "$LOG_DIR/dzen-weather-5day" | sed 's/\t//'
+            fi
+        fi
+    else
+        echo
+    fi
+    echo
+    echo "^scrollhome()"
+
+
+    sleep $SLEEP
+done | dzen2 -ta l -tw $WIDTH -h $HEIGHT -x $X -y $Y -w $WIDTH -bg $BG -fn $FONT -l $(( $WEATHER_LINES + 6 )) -sa l -e 'entertitle=uncollapse,scrollhome;leavetitle=collapse;button4=scrollup;button5=scrolldown'

@@ -1,0 +1,30 @@
+#!/bin/bash
+# steps {1-20}
+
+sudo chmod 666 /sys/class/backlight/intel_backlight/brightness
+
+base=402
+increment=224
+
+upDown=$1
+
+curLevel=`cat /sys/class/backlight/intel_backlight/brightness`
+
+currentStep=$(($curLevel - 402))
+currentStep=$(($currentStep / 224))
+
+newStep=$(($upDown + $currentStep))
+
+if [ $newStep -gt 20 ]; then
+ newStep=20
+fi
+
+if [ $newStep -lt 0 ]; then
+ newStep=0
+fi
+
+value=$(($increment * $newStep))
+value=$(($base + $value))
+
+echo $value > /sys/class/backlight/intel_backlight/brightness
+ 
