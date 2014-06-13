@@ -20,7 +20,7 @@ import Data.Ratio((%))
 import Data.Char
 
 import Foreign.C.Types (CInt)
-import Graphics.X11.Xlib.Display
+import Graphics.X11.Xinerama
 
 import XMonad.Hooks.DynamicHooks
 import XMonad.Hooks.DynamicLog
@@ -178,14 +178,17 @@ myDzenPP h = defaultPP
 }
 
 -- Return the dimensions of the (primary?) screen. (Not Working)
---getScreenWidth :: IO [Char]
---getScreenWidth = do
---   dsp <- openDisplay ""
---   let s1 = defaultScreen dsp
---       w1 = displayWidth dsp s1
---       w = w1 - 332
---       myScreenWidth = read $ show w :: String
---   closeDisplay dsp
+-- screenWidth :: Int -> IO Double
+getScreenWidth s = do
+   dsp <- openDisplay ""
+   mss <- xineramaQueryScreens dsp
+   return $ case mss of
+      Nothing -> 0
+      Just [] -> 0
+      Just ss -> if s >= 0 && s < length ss -- prevent bad index
+         then fromIntegral . xsi_width $ ss !! s else 0
+getScreenNumber = 0
+
 
 --Bottom bar sizes and locations
 myVolBarX     = show ( myScreenWidth - 76 )
