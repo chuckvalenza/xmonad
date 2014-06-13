@@ -12,6 +12,7 @@
 import XMonad
 
 import XMonad.Actions.CycleWS
+import XMonad.Actions.SpawnOn
 
 import Control.Monad
 
@@ -65,7 +66,7 @@ main = do
  xmonad $ withUrgencyHook NoUrgencyHook $ defaultConfig
    { terminal     			= myTerminal
    , workspaces 	  		= myWorkspaces
-   , manageHook 			  = myManageHook <+> manageDocks -- <+> dynamicMasterHook
+   , manageHook 			  = myManageHook <+> manageDocks <+> manageSpawn
    , layoutHook 			  = myLayout
    , borderWidth        = myBorderWidth
    , logHook 	 			    = dynamicLogWithPP $ myDzenPP statusbar
@@ -81,7 +82,7 @@ main = do
    , ((mod4Mask .|. shiftMask, xK_m), spawn "spotify")
    , ((mod4Mask,               xK_i), spawn "eog")
    , ((mod4Mask,               xK_w), spawn "wpa_gui")
-   , ((mod4Mask,               xK_p), shellPrompt myLauncherConfig)
+   , ((mod4Mask,               xK_p), shellPromptHere myLauncherConfig)
    , ((mod4Mask,            xK_Left), prevWS)
    , ((mod4Mask,           xK_Right), nextWS)
    , ((mod1Mask,              xK_F4), kill)
