@@ -54,15 +54,17 @@ import XMonad.Util.Run
 --------------------------------------------------------------------------------
 
 main = do
- statusbar <- spawnPipe myStatusBar
- time <- spawnPipe myTimeBar
- volume <- spawnPipe myVolBar
- username <- spawnPipe myUserBar
- comkybat <- spawnPipe myBatBar
- comkympd <- spawnPipe myMPDBar
- conkycpu <- spawnPipe myCPUBar
- conkyram <- spawnPipe myRAMBar
- conkyuptime <- spawnPipe myUPBar
+ screenWidth <- getScreenWidth getScreenNumber
+ screenHeight <- getScreenHeight getScreenNumber
+ statusbar <- spawnPipe ( myStatusBar screenWidth screenHeight )
+ time <- spawnPipe ( myTimeBar screenWidth screenHeight )
+ volume <- spawnPipe ( myVolBar screenWidth screenHeight )
+ username <- spawnPipe ( myUserBar screenWidth )
+ comkybat <- spawnPipe ( myBatBar screenWidth )
+ comkympd <- spawnPipe ( myMPDBar screenWidth )
+ conkycpu <- spawnPipe ( myCPUBar screenWidth )
+ conkyram <- spawnPipe ( myRAMBar screenWidth )
+ conkyuptime <- spawnPipe ( myUPBar screenWidth )
  xmonad $ withUrgencyHook NoUrgencyHook $ defaultConfig
    { terminal     			= myTerminal
    , workspaces 	  		= myWorkspaces
@@ -107,21 +109,6 @@ myBorderWidth        = 1
 myNormalBorderColor  = "#0f0f0f"
 myFocusedBorderColor = "#1f1f1f"
 myFont               = "-misc-fixed-*-*-*-*-10-*-*-*-*-*-*-*"
-
---------------------------------------
--- Screen Dimensions
---------------------------------------
-myScreenWidth        = ord (chr 1366)
-myScreenHeight       = ord (chr 768)
---------------------------------------
-
-
---myScreenWidth        = ord (chr 1024) -- 4:3 screen
---myScreenHeight       = ord (chr 768)
---myScreenWidth        = ord (chr 1360) -- My TV screen 
---myScreenHeight       = ord (chr 768)
---myScreenWidth        = ord (chr 1280) -- 4:3 screen
---myScreenHeight       = ord (chr 1024)
 
 -- Set workspace names
 myWorkspaces = [ " 1 "
@@ -187,32 +174,41 @@ getScreenWidth s = do
       Just [] -> 0
       Just ss -> if s >= 0 && s < length ss -- prevent bad index
          then fromIntegral . xsi_width $ ss !! s else 0
+
+getScreenHeight s = do
+   dsp <- openDisplay ""
+   mss <- xineramaQueryScreens dsp
+   return $ case mss of
+      Nothing -> 0
+      Just [] -> 0
+      Just ss -> if s >= 0 && s < length ss -- prevent bad index
+         then fromIntegral . xsi_height $ ss !! s else 0
+
 getScreenNumber = 0
 
-
 --Bottom bar sizes and locations
-myVolBarX     = show ( myScreenWidth - 76 )
-myTimeBarX    = show ( myScreenWidth - 256 ) --myStatusBar width is the same value as myTimeBarX
-myBottomBarY  = show ( myScreenHeight - 16 )
+myVolBarX      screenWidth  = show ( screenWidth - 76 )
+myTimeBarX     screenWidth  = show ( screenWidth - 256 ) --myStatusBar width is the same value as myTimeBarX
+myBottomBarY   screenHeight = show ( screenHeight - 16 )
 --top bar sizes and locations
-myBatBarX     = show ( myScreenWidth - 100 )
-myCPUBarX     = show ( myScreenWidth - 215 )
-myRAMBarX     = show ( myScreenWidth - 328 )
-myUPBarX      = show ( myScreenWidth - 467 )
-myMPDBarWidth = show ( myScreenWidth - 667 )
+myBatBarX      screenWidth  = show ( screenWidth - 100 )
+myCPUBarX      screenWidth  = show ( screenWidth - 215 )
+myRAMBarX      screenWidth  = show ( screenWidth - 328 )
+myUPBarX       screenWidth  = show ( screenWidth - 467 )
+myMPDBarWidth  screenWidth  = show ( screenWidth - 667 )
 
 -- Statusbars:
   -- bottom (right to left)
-myVolBar    = "conky -c ~/.xmonad/scripts/.volmon | dzen2 -x '" ++ myVolBarX ++ "' -y '" ++ myBottomBarY ++ "' -h '16' -w '80' -ta 'l' -fg '" ++ white1 ++ "' -bg '" ++ black ++ "' -fn '" ++ myFont ++ "' -e 'button2=;'"
-myTimeBar   = "exec ~/.xmonad/scripts/.date | dzen2 -x '" ++ myTimeBarX ++ "' -y '" ++ myBottomBarY ++ "' -h '16' -w '180' -ta 'c' -fg '" ++ white1 ++ "' -bg '" ++ black ++ "' -fn " ++ myFont ++ " -l 7 -sa 'c' -u -e 'button1=uncollapse;leavetitle=collapse;button2=;'"
-myStatusBar = "dzen2 -x '0' -y '" ++ myBottomBarY ++ "' -h '16' -w '" ++ myTimeBarX ++ "' -ta 'l' -fg '" ++ white1 ++ "' -bg '" ++ black ++ "' -fn " ++ myFont ++ " -p -e 'button2=;'"
+myVolBar    screenWidth screenHeight = "conky -c ~/.xmonad/scripts/.volmon | dzen2 -x '" ++ myVolBarX screenWidth ++ "' -y '" ++ myBottomBarY screenHeight ++ "' -h '16' -w '80' -ta 'l' -fg '" ++ white1 ++ "' -bg '" ++ black ++ "' -fn '" ++ myFont ++ "' -e 'button2=;'"
+myTimeBar   screenWidth screenHeight = "exec ~/.xmonad/scripts/.date | dzen2 -x '" ++ myTimeBarX screenWidth ++ "' -y '" ++ myBottomBarY screenHeight ++ "' -h '16' -w '180' -ta 'c' -fg '" ++ white1 ++ "' -bg '" ++ black ++ "' -fn " ++ myFont ++ " -l 7 -sa 'c' -u -e 'button1=uncollapse;leavetitle=collapse;button2=;'"
+myStatusBar screenWidth screenHeight = "dzen2 -x '0' -y '" ++ myBottomBarY screenHeight ++ "' -h '16' -w '" ++ myTimeBarX screenWidth ++ "' -ta 'l' -fg '" ++ white1 ++ "' -bg '" ++ black ++ "' -fn " ++ myFont ++ " -p -e 'button2=;'"
   -- top (right to left)
-myBatBar    = "conky -c ~/.xmonad/scripts/.batmon | dzen2 -x '" ++ myBatBarX ++ "' -y '0' -h '16' -w '100' -ta 'l' -fg '" ++ white1 ++ "' -bg '" ++ black ++ "' -fn '" ++ myFont ++ "' -e 'button2=;'"
-myCPUBar    = "conky -c ~/.xmonad/scripts/.cpumon | dzen2 -x '" ++ myCPUBarX ++ "' -y '0' -h '16' -w '115' -ta 'l' -fg '" ++ white1 ++ "' -bg '" ++ black ++ "' -fn '" ++ myFont ++ "' -e 'button2=;'"
-myRAMBar    = "conky -c ~/.xmonad/scripts/.rammon | dzen2 -x '" ++ myRAMBarX ++ "' -y '0' -h '16' -w '113' -ta 'l' -fg '" ++ white1 ++ "' -bg '" ++ black ++ "' -fn '" ++ myFont ++ "' -e 'button2=;'"
-myUPBar     = "conky -c ~/.xmonad/scripts/.upmon  | dzen2 -x '" ++ myUPBarX ++ "' -y '0' -h '16' -w '140' -ta 'c' -fg '" ++ white1 ++ "' -bg '" ++ black ++ "' -fn '" ++ myFont ++ "' -e 'button2=;'"
-myMPDBar    = "conky -c ~/.xmonad/scripts/.mpdmon | dzen2 -x '200' -y '0' -h '16' -w '" ++ myMPDBarWidth ++ "' -ta 'r' -fg '" ++ yellow ++ "' -bg '" ++ black ++ "' -fn '" ++ myFont ++ "' -e 'button2=;'"
-myUserBar   = "exec ~/.xmonad/scripts/.logindisp  | dzen2 -x '0' -y '0' -h '16' -w '200' -ta 'l' -fg '" ++ cyan ++ "' -bg '" ++ black ++ "' -fn '" ++ myFont ++ "' -e 'button2=;'"
+myBatBar    screenWidth = "conky -c ~/.xmonad/scripts/.batmon | dzen2 -x '" ++ myBatBarX screenWidth ++ "' -y '0' -h '16' -w '100' -ta 'l' -fg '" ++ white1 ++ "' -bg '" ++ black ++ "' -fn '" ++ myFont ++ "' -e 'button2=;'"
+myCPUBar    screenWidth = "conky -c ~/.xmonad/scripts/.cpumon | dzen2 -x '" ++ myCPUBarX screenWidth ++ "' -y '0' -h '16' -w '115' -ta 'l' -fg '" ++ white1 ++ "' -bg '" ++ black ++ "' -fn '" ++ myFont ++ "' -e 'button2=;'"
+myRAMBar    screenWidth = "conky -c ~/.xmonad/scripts/.rammon | dzen2 -x '" ++ myRAMBarX screenWidth ++ "' -y '0' -h '16' -w '113' -ta 'l' -fg '" ++ white1 ++ "' -bg '" ++ black ++ "' -fn '" ++ myFont ++ "' -e 'button2=;'"
+myUPBar     screenWidth = "conky -c ~/.xmonad/scripts/.upmon  | dzen2 -x '" ++ myUPBarX screenWidth ++ "' -y '0' -h '16' -w '140' -ta 'c' -fg '" ++ white1 ++ "' -bg '" ++ black ++ "' -fn '" ++ myFont ++ "' -e 'button2=;'"
+myMPDBar    screenWidth = "conky -c ~/.xmonad/scripts/.mpdmon | dzen2 -x '200' -y '0' -h '16' -w '" ++ myMPDBarWidth screenWidth ++ "' -ta 'r' -fg '" ++ yellow ++ "' -bg '" ++ black ++ "' -fn '" ++ myFont ++ "' -e 'button2=;'"
+myUserBar   screenWidth = "exec ~/.xmonad/scripts/.logindisp  | dzen2 -x '0' -y '0' -h '16' -w '200' -ta 'l' -fg '" ++ cyan ++ "' -bg '" ++ black ++ "' -fn '" ++ myFont ++ "' -e 'button2=;'"
 
 --myTheme = defaultTheme
 --   { decoHeight          = 16
