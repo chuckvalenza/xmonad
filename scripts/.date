@@ -1,0 +1,9 @@
+#!/bin/bash
+# updates clock every second
+
+while( true ); do
+  date
+  TODAY=$(echo `date +'%d'` | sed 's/0*//')
+  cal | tail -n 7 | sed -re "s/^(.*[A-Za-z][A-Za-z]*.*)$/^fg(#0099ff)^bg(#222222)\1/; s/(^|[ ])($TODAY)($|[ ])/\1^bg(#1a7987)^fg(#f0f0f0)\2^fg(#ffffff)^bg(#0f0f0f)\3/"
+  sleep 1
+done
