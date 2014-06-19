@@ -7,6 +7,7 @@ This repository was created so I could easily move my xmonad configuration from 
 Note that keybindings will have to be changed depending on device and user preference. This is constantly in development, and getting
 better as I hone my skills, but is only maintained when I have the time.
 
-Programs required:
+Required:
 dzen2
 conky (if compiling from source, make sure to set mpd and imlib use flags)
+

@@ -1,0 +1,8 @@
+#!/bin/bash
+# updates clock every second
+
+date
+while( true ); do
+  sleep 1
+  date
+done
