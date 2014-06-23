@@ -107,7 +107,7 @@ myTerminal           = "urxvt"
 myIconDir            = "/icons"
 myBorderWidth        = 1
 myNormalBorderColor  = "#0f0f0f"
-myFocusedBorderColor = "#1f1f1f"
+myFocusedBorderColor = "#0099ff"
 myFont               = "-misc-fixed-*-*-*-*-10-*-*-*-*-*-*-*"
 
 -- Set workspace names
