@@ -72,7 +72,7 @@ main = do
    , layoutHook 			  = myLayout
    , borderWidth        = myBorderWidth
    , logHook 	 			    = dynamicLogWithPP $ myDzenPP statusbar
-   , focusedBorderColor	= darkGray
+   , focusedBorderColor	= myFocusedBorderColor
    , normalBorderColor 	= myNormalBorderColor
    , modMask	 			    = mod4Mask -- modkey is now Windows Key
    } `additionalKeys`
@@ -105,7 +105,7 @@ main = do
 --------------------------------------------------------------------------------
 myTerminal           = "urxvt"
 myIconDir            = "/icons"
-myBorderWidth        = 1
+myBorderWidth        = 2
 myNormalBorderColor  = "#0f0f0f"
 myFocusedBorderColor = "#0099ff"
 myFont               = "-misc-fixed-*-*-*-*-10-*-*-*-*-*-*-*"
@@ -127,7 +127,7 @@ lightGray = "#333333" --Light Grey
 white1    = "#ffffff" --Bright White
 white2    = "#f0f0f0" --White 2
 black     = "#0f0f0f" --Black
-yellow    = "#fff000" --Yellow (maybe turn this to red)
+yellow    = "#fff000" --Yellow
 red       = "#d42020" --red
 darkGray  = "#222222" --Dark Grey
 
@@ -164,8 +164,7 @@ myDzenPP h = defaultPP
                   )
 }
 
--- Return the dimensions of the (primary?) screen. (Not Working)
--- screenWidth :: Int -> IO Double
+-- Retrieve the width dimension of the primary screen
 getScreenWidth s = do
    dsp <- openDisplay ""
    mss <- xineramaQueryScreens dsp
@@ -175,6 +174,7 @@ getScreenWidth s = do
       Just ss -> if s >= 0 && s < length ss -- prevent bad index
          then fromIntegral . xsi_width $ ss !! s else 0
 
+-- Retrieve the height dimension of the primary screen
 getScreenHeight s = do
    dsp <- openDisplay ""
    mss <- xineramaQueryScreens dsp
@@ -218,12 +218,15 @@ myUserBar   screenWidth = "exec ~/.xmonad/scripts/.logindisp  | dzen2 -x '0' -y 
 --   , inactiveBorderColor = "#000000"
 --   }
 
--- Layouts for numbered workspaces
-myLayout = avoidStruts $ onWorkspace " 8 " gimpLayout $ smartBorders $ onWorkspace " chat " chatLayout $ standardLayout
+-- Layouts for workspaces
+myLayout = avoidStruts $ spacing 2 $ onWorkspace " 8 " gimpLayout $ onWorkspace " chat " chatLayout $ standardLayout
    where
-   standardLayout = (tiled ||| Mirror tiled ||| Full) 
+   standardLayout = (tiled ||| Mirror tiled ||| full)
+
    -- default tiling algorithm partitions the screen into two panes
-   tiled   = spacing 1 $ Tall nmaster delta ratio
+   tiled   = Tall nmaster delta ratio
+
+   full    = spacing 12 $ Full 
 
    -- The default number of windows in the master pane
    nmaster = 1
@@ -235,7 +238,7 @@ myLayout = avoidStruts $ onWorkspace " 8 " gimpLayout $ smartBorders $ onWorkspa
    delta   = 3/100
 
    -- Layout for " 8 " (specifically modified to accomodate Gimp)
-   gimpLayout = withIM (0.15) (Role "gimp-toolbox") $ reflectHoriz $ withIM (0.15) (Role "gimp-dock") Full
+   gimpLayout = smartBorders $ withIM (0.15) (Role "gimp-toolbox") $ reflectHoriz $ withIM (0.15) (Role "gimp-dock") $ spacing 0 $ Full
 
    -- Layout for " chat "
    chatLayout = reflectHoriz $ withIM(0.17) steamFriends $ withIM (0.17) skypeRoster (Grid ||| Full)
@@ -246,7 +249,7 @@ myLayout = avoidStruts $ onWorkspace " 8 " gimpLayout $ smartBorders $ onWorkspa
 -- Window rules:
 myManageHook = composeAll . concat $
    [ [isDialog --> doFloat]
-   , [isFullscreen --> doFullFloat]
+   , [isFullscreen --> doFullFloat] -- `And` (Not (Title "Win7 Ultimate 64-bit [Running] - Oracle"))]
    , [className =? c --> doFloat | c <- myCFloats]
    , [title =? t --> doFloat | t <- myTFloats]
    , [resource =? i --> doIgnore | i <- myIgnores]
