@@ -256,6 +256,7 @@ myManageHook = composeAll . concat $
    , [className =? m --> doShift " 8 " | m <- myMShifts]
    , [className =? "Skype" --> doShift " chat "]
    , [title =? ch --> doShift " chat " | ch <- myCShifts]
+   , [className =? "Steam" <&&> title /=? "Friends" --> doShift " 8 "]
    ]
    where
    myMShifts = ["Gimp", "Spotify"] -- Media Shifts
