@@ -22,6 +22,8 @@ import Data.Char
 import Foreign.C.Types (CInt)
 import Graphics.X11.Xinerama
 
+import System.IO.UTF8
+
 import XMonad.Hooks.DynamicHooks
 import XMonad.Hooks.DynamicLog
 import XMonad.Hooks.FadeInactive(setOpacity)
@@ -77,8 +79,8 @@ main = do
    , modMask	 			    = mod4Mask -- modkey is now Windows Key
    } `additionalKeys`
    [ ((mod4Mask .|. shiftMask, xK_b), spawn "chromium")
-   , ((mod4Mask .|. shiftMask, xK_i), spawn "urxvt -e irssi -c 132.177.4.36 -p 45680")
-   , ((mod4Mask .|. shiftMask, xK_f), spawn "urxvt -e fbchat")
+   , ((mod4Mask .|. shiftMask, xK_i), spawn "urxvt -tr -e irssi -c 132.177.4.36 -p 45680")
+   , ((mod4Mask .|. shiftMask, xK_f), spawn "urxvt -tr -e fbchat")
    , ((mod4Mask,               xK_s), spawn "lockscript")
    , ((mod4Mask,               xK_m), spawn "urxvt +tr -e ncmpcpp")
    , ((mod4Mask .|. shiftMask, xK_m), spawn "spotify")
@@ -103,7 +105,7 @@ main = do
 -------------------------------------------------------------------------------
 -- Defaults
 --------------------------------------------------------------------------------
-myTerminal           = "urxvt"
+myTerminal           = "urxvt -tr"
 myIconDir            = "/icons"
 myBorderWidth        = 2
 myNormalBorderColor  = "#0f0f0f"
@@ -147,9 +149,9 @@ myLauncherConfig = defaultXPConfig
 
 -- dynamicLog pretty printer for dzen (prints workspace and window info):
 myDzenPP h = defaultPP
-   { ppOutput  =	hPutStrLn h
-   , ppSep     =	" "
-   , ppWsSep   =	""
+   { ppOutput  = System.IO.UTF8.hPutStrLn h
+   , ppSep     = " "
+   , ppWsSep   = ""
    , ppCurrent = wrap("^fg(" ++ cyan ++ ")^bg(" ++ lightGray ++ ")") ("^fg()^bg()")
    , ppUrgent  = wrap("^fg(" ++ darkGray ++ ")^bg(" ++ red ++ ")") ("^fg()^bg()")
    , ppVisible = wrap("^fg(" ++ white1 ++ ")^bg(" ++ darkGray ++ ")") ("^fg()^bg()")
@@ -260,7 +262,7 @@ myManageHook = composeAll . concat $
    ]
    where
    myMShifts = ["Gimp", "Spotify"] -- Media Shifts
-   myCShifts = ["irssi", "Friends","fbchat"] -- Chat Shifts
+   myCShifts = ["irssi", "Friends", "fbchat"] -- Chat Shifts
    myCFloats = ["skype", "calculator", "XFontSel", "Xmessage"] -- Class Floats
    myTFloats = ["Downloads", "Save As...", "Hammerwatch 1.21", "DOOM 3: BFG Edition", "Hotline Miami"] -- Title Floats
    myIgnores = ["desktop_window"]
