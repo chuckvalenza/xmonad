@@ -79,7 +79,7 @@ main = do
    , modMask	 			    = mod4Mask -- modkey is now Windows Key
    } `additionalKeys`
    [ ((mod4Mask .|. shiftMask, xK_b), spawn "chromium")
-   , ((mod4Mask .|. shiftMask, xK_i), spawn "urxvt -tr -e irssi -c 132.177.4.36 -p 45680")
+   , ((mod4Mask .|. shiftMask, xK_i), spawn "urxvt -tr -e irssi -c 132.177.4.36 -p 45680 -w coolwhip:coolwhip")
    , ((mod4Mask .|. shiftMask, xK_f), spawn "urxvt -tr -e fbchat")
    , ((mod4Mask,               xK_s), spawn "lockscript")
    , ((mod4Mask,               xK_m), spawn "urxvt +tr -e ncmpcpp")
