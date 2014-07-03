@@ -243,10 +243,11 @@ myLayout = avoidStruts $ spacing 2 $ onWorkspace " 8 " gimpLayout $ onWorkspace 
    gimpLayout = smartBorders $ withIM (0.15) (Role "gimp-toolbox") $ reflectHoriz $ withIM (0.15) (Role "gimp-dock") $ spacing 0 $ Full
 
    -- Layout for " chat "
-   chatLayout = reflectHoriz $ withIM(0.17) steamFriends $ withIM (0.17) skypeRoster (Grid ||| Full)
+   chatLayout = reflectHoriz $ withIM (0.17) pidginRoster $ withIM (0.17) steamFriends $ withIM (0.17) skypeRoster (Grid ||| Full)
       where
       steamFriends = And (ClassName "Steam") (Title "Friends")
       skypeRoster  = (ClassName "Skype") `And` (Not (Title "Options")) `And` (Not (Role "Chats")) `And` (Not (Role "CallWindow")) `And` (Not (Role "ConversationsWindow"))
+      pidginRoster = (ClassName "Pidgin") `And` (Role "buddy_list")
 
 -- Window rules:
 myManageHook = composeAll . concat $
@@ -257,6 +258,7 @@ myManageHook = composeAll . concat $
    , [resource =? i --> doIgnore | i <- myIgnores]
    , [className =? m --> doShift " 8 " | m <- myMShifts]
    , [className =? "Skype" --> doShift " chat "]
+   , [className =? "Pidgin" --> doShift " chat "]
    , [title =? ch --> doShift " chat " | ch <- myCShifts]
    , [className =? "Steam" <&&> title /=? "Friends" --> doShift " 8 "]
    ]
