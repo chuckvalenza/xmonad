@@ -18,6 +18,7 @@ import Control.Monad
 
 import Data.Ratio((%))
 import Data.Char
+import Data.List
 
 import Foreign.C.Types (CInt)
 import Graphics.X11.Xinerama
@@ -212,16 +213,8 @@ myUPBar     screenWidth = "conky -c ~/.xmonad/scripts/.upmon  | dzen2 -x '" ++ m
 myMPDBar    screenWidth = "conky -c ~/.xmonad/scripts/.mpdmon | dzen2 -x '200' -y '0' -h '16' -w '" ++ myMPDBarWidth screenWidth ++ "' -ta 'r' -fg '" ++ yellow ++ "' -bg '" ++ black ++ "' -fn '" ++ myFont ++ "' -e 'button2=;'"
 myUserBar   screenWidth = "exec ~/.xmonad/scripts/.logindisp  | dzen2 -x '0' -y '0' -h '16' -w '200' -ta 'l' -fg '" ++ cyan ++ "' -bg '" ++ black ++ "' -fn '" ++ myFont ++ "' -e 'button2=;'"
 
---myTheme = defaultTheme
---   { decoHeight          = 16
---   , activeColor         = "#a6c292"
---   , activeBorderColor   = "#a6c292"
---   , activeTextColor     = "#000000"
---   , inactiveBorderColor = "#000000"
---   }
-
 -- Layouts for workspaces
-myLayout = avoidStruts $ spacing 2 $ onWorkspace " 8 " gimpLayout $ onWorkspace " chat " chatLayout $ standardLayout
+myLayout = avoidStruts $ onWorkspace " 8 " gimpLayout $ spacing 2 $ onWorkspace " chat " chatLayout $ standardLayout
    where
    standardLayout = (tiled ||| Mirror tiled ||| full)
 
@@ -240,7 +233,7 @@ myLayout = avoidStruts $ spacing 2 $ onWorkspace " 8 " gimpLayout $ onWorkspace 
    delta   = 3/100
 
    -- Layout for " 8 " (specifically modified to accomodate Gimp)
-   gimpLayout = smartBorders $ withIM (0.15) (Role "gimp-toolbox") $ reflectHoriz $ withIM (0.15) (Role "gimp-dock") $ spacing 0 $ Full
+   gimpLayout = lessBorders (OnlyFloat) $ noBorders $ withIM (0.15) (Role "gimp-toolbox") $ reflectHoriz $ withIM (0.15) (Role "gimp-dock") $ spacing 0 $ Full
 
    -- Layout for " chat "
    chatLayout = reflectHoriz $ withIM (0.17) pidginRoster $ withIM (0.17) steamFriends $ withIM (0.17) skypeRoster (Grid ||| Full)
@@ -252,7 +245,9 @@ myLayout = avoidStruts $ spacing 2 $ onWorkspace " 8 " gimpLayout $ onWorkspace 
 -- Window rules:
 myManageHook = composeAll . concat $
    [ [isDialog --> doFloat]
-   , [isFullscreen --> doFullFloat] -- `And` (Not (Title "Win7 Ultimate 64-bit [Running] - Oracle"))]
+   , [fmap (isInfixOf "Oracle VM VirtualBox") title --> ask >>= doF . W.sink]
+   -- , [fmap (isInfixOf "Oracle VM VirtualBox") title --> ask >>= \w -> liftX (sendMessage (AddFullscreen w)) >> idHook]
+   , [isFullscreen --> doFullFloat]
    , [className =? c --> doFloat | c <- myCFloats]
    , [title =? t --> doFloat | t <- myTFloats]
    , [resource =? i --> doIgnore | i <- myIgnores]
