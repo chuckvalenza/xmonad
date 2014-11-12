@@ -79,9 +79,14 @@ main = do
    , normalBorderColor 	= myNormalBorderColor
    , modMask	 			    = mod4Mask -- modkey is now Windows Key
    } `additionalKeys`
+<<<<<<< HEAD
    [ ((mod4Mask .|. shiftMask, xK_b), spawn "google-chrome-stable")
    , ((mod4Mask          , xK_q     ), spawn "~/.xmonad/scripts/reload")
    , ((mod4Mask .|. shiftMask, xK_i), spawn "urxvt -tr -e irssi -c 132.177.4.36 -p 45680 -w coolwhip:coolwhip")
+=======
+   [ ((mod4Mask .|. shiftMask, xK_b), spawn "chromium")
+   , ((mod4Mask .|. shiftMask, xK_i), spawn "urxvt -tr -e irssi -c 132.177.4.36 -p 45680")
+>>>>>>> lair/wandows
    , ((mod4Mask .|. shiftMask, xK_f), spawn "urxvt -tr -e fbchat")
    , ((mod4Mask,               xK_s), spawn "lockscript")
    , ((mod4Mask,               xK_m), spawn "urxvt +tr -e ncmpcpp")
