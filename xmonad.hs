@@ -79,7 +79,8 @@ main = do
    , normalBorderColor 	= myNormalBorderColor
    , modMask	 			    = mod4Mask -- modkey is now Windows Key
    } `additionalKeys`
-   [ ((mod4Mask .|. shiftMask, xK_b), spawn "chromium")
+   [ ((mod4Mask .|. shiftMask, xK_b), spawn "google-chrome-stable")
+   , ((mod4Mask          , xK_q     ), spawn "~/.xmonad/scripts/reload")
    , ((mod4Mask .|. shiftMask, xK_i), spawn "urxvt -tr -e irssi -c 132.177.4.36 -p 45680 -w coolwhip:coolwhip")
    , ((mod4Mask .|. shiftMask, xK_f), spawn "urxvt -tr -e fbchat")
    , ((mod4Mask,               xK_s), spawn "lockscript")
@@ -212,6 +213,14 @@ myRAMBar    screenWidth = "conky -c ~/.xmonad/scripts/.rammon | dzen2 -x '" ++ m
 myUPBar     screenWidth = "conky -c ~/.xmonad/scripts/.upmon  | dzen2 -x '" ++ myUPBarX screenWidth ++ "' -y '0' -h '16' -w '140' -ta 'c' -fg '" ++ white1 ++ "' -bg '" ++ black ++ "' -fn '" ++ myFont ++ "' -e 'button2=;'"
 myMPDBar    screenWidth = "conky -c ~/.xmonad/scripts/.mpdmon | dzen2 -x '200' -y '0' -h '16' -w '" ++ myMPDBarWidth screenWidth ++ "' -ta 'r' -fg '" ++ yellow ++ "' -bg '" ++ black ++ "' -fn '" ++ myFont ++ "' -e 'button2=;'"
 myUserBar   screenWidth = "exec ~/.xmonad/scripts/.logindisp  | dzen2 -x '0' -y '0' -h '16' -w '200' -ta 'l' -fg '" ++ cyan ++ "' -bg '" ++ black ++ "' -fn '" ++ myFont ++ "' -e 'button2=;'"
+
+{-
+data AllFloat = AllFloat
+  deriving (Read, Show)
+
+instance SetsAmbiguous AllFloat where
+  hiddens _ ws _ _ = map fst . M.toList $ W.floating ws
+-}
 
 -- Layouts for workspaces
 myLayout = avoidStruts $ onWorkspace " 8 " gimpLayout $ spacing 2 $ onWorkspace " chat " chatLayout $ standardLayout
