@@ -1,13 +1,8 @@
-xmonad
+##Xmonad Configuration
 ======
 
-Chuck Valenza's Xmonad Configuration
+When I used xmonad, I used this to move my confguration across installs and different machines. Now that I don't use xmonad as a window manager, this will to lay here, dormant and unfinished, until Github starts limiting my space.
 
-This repository was created so I could easily move my xmonad configuration from one computer to another, but is also up for public use.
-Note that keybindings will have to be changed depending on device and user preference. This is constantly in development, and getting
-better as I hone my skills, but is only maintained when I have the time.
-
-Required:
+####Required:
 dzen2
 conky (if compiling from source, make sure to set mpd and imlib use flags)
-
